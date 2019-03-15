@@ -1,3 +1,5 @@
+[Assignment Reference](https://github.com/xpeppers/goose-game-kata)
+
 Assuming you have `sbt`.
 
 ``` scala
