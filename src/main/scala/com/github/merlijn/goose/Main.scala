@@ -95,7 +95,7 @@ object Main extends IOApp {
 
     if (!state.positions.contains(player))
       (state, Continue(s"No such player: $player"))
-    else if (roll1 < 1 && roll1 > diceSize)
+    else if (roll1 < 1 || roll1 > diceSize)
       (state, Continue(s"Invalid value for dice roll: $roll1"))
     else if (roll2 < 1 || roll2 > diceSize)
       (state, Continue(s"Invalid value for dice roll: $roll2"))
