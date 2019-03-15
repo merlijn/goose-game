@@ -7,28 +7,54 @@ import scala.util.{Random, Try}
 
 object Main extends IOApp {
 
-  // some predefined values
+  /**
+    * Some fixed values
+    */
   val boardLength = 63
   val diceSize = 6
   val bridgeStart = 6
   val bridgeDestination = 12
   val goosePositions = Set(5, 9, 14, 18, 23, 27)
 
-  // regexes matching the user input
+  /**
+    * Regular expressions for the users commands to the program
+    */
   val AddPlayer = "add\\s+player\\s+(\\w+)".r
   val RollDiceAndMovePlayer = "move\\s+(\\w+)".r
   val MovePlayer = "move\\s+(\\w+)\\s+(\\d),\\s+(\\d)".r
 
-  // holds the state of the game
-  case class Game(positions: Map[String, Int])
+  /**
+    * Holds the state of the game.
+    *
+    * Which is just a map from player name -> position
+    */
+  case class Game(positions: Map[String, Int]) {
 
-  // encapsulates a response to the user
+    def playerOnPosition(position: Int): Option[String] = {
+      positions.collectFirst { case (player, playerPosition) if position == playerPosition => player }
+    }
+
+    def updatePosition(player: String, position: Int): Game = copy(positions = positions + (player -> position))
+  }
+
+  /**
+    * This encapsulates a response to the user of the program.
+    */
   sealed trait Response
 
-  case class Quit(text: String) extends Response
+  /**
+    * Response in case the game is finished.
+    */
+  case class GameOver(message: String) extends Response
 
-  case class Continue(response: String) extends Response
+  /**
+    * Response in case the game is still going on.
+    */
+  case class Continue(message: String) extends Response
 
+  /**
+    * String representation of a players position.
+    */
   def positionLabel(n: Int): String = {
     if (n == 0)
       "Start"
@@ -43,48 +69,58 @@ object Main extends IOApp {
   /**
     * Calculates the actual end position of a player after moving and a message explaining what happens.
     */
-  def calculateMovementEffects(name: String, oldPosition: Int, dice: Int): (Int, String) = {
+  def calculateMovementEffects(player: String, oldPosition: Int, dice: Int): (Int, String) = {
 
     val newPosition = oldPosition + dice
 
     if (newPosition == bridgeStart)
-      (bridgeDestination, s". $name jumps to $bridgeDestination")
+      (bridgeDestination, s". $player jumps to $bridgeDestination")
     else if (newPosition > boardLength) {
       val result = boardLength - (newPosition - boardLength)
-      (result, s". $name bounces! $name returns to $result")
+      (result, s". $player bounces! $player returns to $result")
     }
     else if (goosePositions.contains(newPosition)) {
-      val (pos, append) = calculateMovementEffects(name, newPosition, dice)
+      val (pos, append) = calculateMovementEffects(player, newPosition, dice)
       val jump = newPosition + dice
-      (pos, s", The Goose. $name moves again and goes to $jump" + append)
+      (pos, s", The Goose. $player moves again and goes to $jump" + append)
     }
     else
       (newPosition, "")
   }
 
-  def movePlayer(state: Game)(name: String, roll1: Int, roll2: Int): (Game, Response) = {
+  /**
+    * This moves a player, returning the updated state and a response message.
+    */
+  def movePlayer(state: Game)(player: String, roll1: Int, roll2: Int): (Game, Response) = {
 
-    if (!state.positions.contains(name))
-      (state, Continue(s"No such player: $name"))
+    if (!state.positions.contains(player))
+      (state, Continue(s"No such player: $player"))
     else if (roll1 < 1 && roll1 > diceSize)
       (state, Continue(s"Invalid value for dice roll: $roll1"))
     else if (roll2 < 1 || roll2 > diceSize)
       (state, Continue(s"Invalid value for dice roll: $roll2"))
     else {
-      val diceRoll = roll1.toInt + roll2.toInt
-      val currentPosition = state.positions(name)
+      val diceRoll = roll1 + roll2
+      val currentPosition = state.positions(player)
       val result = currentPosition + diceRoll
 
-      val (newPosition: Int, msgAppend: String) = calculateMovementEffects(name, currentPosition, diceRoll)
+      // depending on where the player lands, some rules may apply, which are calculated here
+      val (newPosition: Int, msgAppend: String) = calculateMovementEffects(player, currentPosition, diceRoll)
 
-      val message = s"$name rolls $roll1, $roll2. $name moves from ${positionLabel(currentPosition)} to ${positionLabel(result)}" + msgAppend
-
-      val updatedState = state.copy(positions = state.positions + (name -> newPosition))
+      // the start of the reply message is always the same. depending on the applied rules there is a message appended
+      val message = s"$player rolls $roll1, $roll2. $player moves from ${positionLabel(currentPosition)} to ${positionLabel(result)}" + msgAppend
 
       if (newPosition == boardLength)
-        (updatedState, Quit(message + s". $name Wins!"))
+        (state.updatePosition(player, newPosition), GameOver(message + s". $player Wins!"))
       else
-        (updatedState, Continue(message))
+        state.playerOnPosition(newPosition) match {
+          case None =>
+            (state.updatePosition(player, newPosition), Continue(message))
+          case Some(otherPlayer) if player != otherPlayer =>
+            (state
+              .updatePosition(otherPlayer, currentPosition)
+              .updatePosition(player, newPosition), Continue(message + s". On ${positionLabel(currentPosition)} there is $otherPlayer, who returns to ${positionLabel(currentPosition)} "))
+        }
     }
   }
 
@@ -100,7 +136,7 @@ object Main extends IOApp {
         (state, Continue(s"$name: already existing player"))
       else {
         val newPlayers = state.positions + (name -> 0)
-        (state.copy(positions = newPlayers), Continue(response = "players: " + newPlayers.keys.mkString(", ")))
+        (state.copy(positions = newPlayers), Continue(message = "players: " + newPlayers.keys.mkString(", ")))
       }
 
     case MovePlayer(name, roll1, roll2) =>
@@ -121,7 +157,7 @@ object Main extends IOApp {
 
     case "quit" | "exit" =>
 
-      (state, Quit("bye!"))
+      (state, GameOver("bye!"))
 
     case _ =>
 
@@ -133,9 +169,7 @@ object Main extends IOApp {
   def putLine(str: String): IO[Unit] = IO(println(str))
 
   /**
-    * The main IO loop.
-    *
-    * Reads a line from the console
+    * The main game loop.
     */
   def loop(game: Game): IO[ExitCode] =
     IO.suspend {
@@ -144,7 +178,7 @@ object Main extends IOApp {
 
         updateState(game)(line) match {
 
-          case (_, Quit(response))  =>
+          case (_, GameOver(response))  =>
             putLine(response)
               .flatMap(_ => IO.pure(ExitCode.Success) )
 
@@ -155,6 +189,11 @@ object Main extends IOApp {
       }
     }
 
+  /**
+    * The run(...) is like to the main(...) method in cats-effect IOApp)
+    *
+    * It simply calls the game loop with an empty game to start.
+    */
   override def run(args: List[String]): IO[ExitCode] = loop(Game(Map.empty))
 }
 
