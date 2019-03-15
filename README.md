@@ -1,6 +1,6 @@
-[Assignment Reference](https://github.com/xpeppers/goose-game-kata)
+### How to run
 
-Assuming you have `sbt`.
+Assuming you have [sbt](https://www.scala-sbt.org/) installed.
 
 ``` scala
 sbt run
