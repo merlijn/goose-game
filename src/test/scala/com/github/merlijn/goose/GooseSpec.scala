@@ -1,6 +1,6 @@
 package com.github.merlijn.goose
 
-import com.github.merlijn.goose.Main._
+import com.github.merlijn.goose.Game._
 import org.scalatest.{Matchers, WordSpec}
 
 class GooseSpec extends WordSpec with Matchers {
