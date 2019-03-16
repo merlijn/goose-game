@@ -61,17 +61,24 @@ object Game {
 
     val newPosition = oldPosition + dice
 
+    // crossing the bridge
     if (newPosition == bridgeStart)
       (bridgeDestination, s". $player jumps to $bridgeDestination")
+
+    // bouncing back from the finish
     else if (newPosition > boardLength) {
       val result = boardLength - (newPosition - boardLength)
       (result, s". $player bounces! $player returns to $result")
     }
+
+    // goose jumps
     else if (goosePositions.contains(newPosition)) {
       val (pos, append) = calculateMovementEffects(player, newPosition, dice)
       val jump = newPosition + dice
       (pos, s", The Goose. $player moves again and goes to $jump" + append)
     }
+
+    // nothing special
     else
       (newPosition, "")
   }
