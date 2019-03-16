@@ -10,6 +10,14 @@ This starts a game.
 
 There is a special command `quit` or `exit` to prematurely quit the game.
 
+### Tests
+
+There is a `GooseSpec` covering all the cases in the Assignment.
+
+``` scala
+sbt test
+```
+
 ### Implementation details
 
 I decided to use *cats-effect* for a more functional approach dealing with `IO`.

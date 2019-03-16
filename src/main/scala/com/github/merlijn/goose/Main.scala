@@ -23,12 +23,14 @@ object Main extends IOApp {
   val RollDiceAndMovePlayer = "move\\s+(\\w+)".r
   val MovePlayer = "move\\s+(\\w+)\\s+(\\d),\\s+(\\d)".r
 
+  def rollRandomDice(): Int = Random.nextInt(diceSize) + 1
+
   /**
     * Holds the state of the game.
     *
     * Which is just a map from player name -> position
     */
-  case class Game(positions: Map[String, Int]) {
+  case class Game(positions: Map[String, Int], rollDice: () => Int = rollRandomDice) {
 
     def playerOnPosition(position: Int): Option[String] = {
       positions.collectFirst { case (player, playerPosition) if position == playerPosition => player }
@@ -111,7 +113,7 @@ object Main extends IOApp {
       val message = s"$player rolls $roll1, $roll2. $player moves from ${positionLabel(currentPosition)} to ${positionLabel(result)}" + msgAppend
 
       if (newPosition == boardLength)
-        (state.updatePosition(player, newPosition), GameOver(message + s". $player Wins!"))
+        (state.updatePosition(player, newPosition), GameOver(message + s". $player Wins!!"))
       else
         state.playerOnPosition(newPosition) match {
           case None =>
@@ -119,12 +121,12 @@ object Main extends IOApp {
           case Some(otherPlayer) if player != otherPlayer =>
             (state
               .updatePosition(otherPlayer, currentPosition)
-              .updatePosition(player, newPosition), Continue(message + s". On ${positionLabel(currentPosition)} there is $otherPlayer, who returns to ${positionLabel(currentPosition)} "))
+              .updatePosition(player, newPosition), Continue(message + s". On ${positionLabel(newPosition)} there is $otherPlayer, who returns to ${positionLabel(currentPosition)}"))
         }
     }
   }
 
-  def rollDice(): Int = Random.nextInt(diceSize) + 1
+
 
   /**
     * Updates the game state and returns a response given current game state and the user input.
@@ -150,8 +152,8 @@ object Main extends IOApp {
 
     case RollDiceAndMovePlayer(name) =>
 
-      val roll1 = rollDice()
-      val roll2 = rollDice()
+      val roll1 = state.rollDice()
+      val roll2 = state.rollDice()
 
       movePlayer(state)(name, roll1, roll2)
 
